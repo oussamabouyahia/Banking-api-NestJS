@@ -1,0 +1,51 @@
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid()) // UUIDs are safer than auto-increment integers
+  email     String   @unique
+  name      String
+  password  String   // Hashed!
+  balance   Decimal  @default(0.00) @db.Decimal(10, 2) // Never use Float for money!
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  sentTransactions     Transaction[] @relation("sentTransactions")
+  receivedTransactions Transaction[] @relation("receivedTransactions")
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  amount    Decimal  @db.Decimal(10, 2)
+  type      TransactionType
+  status    TransactionStatus @default(PENDING)
+  createdAt DateTime @default(now())
+
+  // Relationships (Double Entry Bookkeeping)
+  senderId    String?
+  sender      User?    @relation("sentTransactions", fields: [senderId], references: [id])
+  
+  receiverId  String?
+  receiver    User?    @relation("receivedTransactions", fields: [receiverId], references: [id])
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
