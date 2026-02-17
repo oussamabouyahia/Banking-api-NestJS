@@ -15,9 +15,16 @@ export class TransactionsService {
 
     // 1. Wrap EVERYTHING in a transaction
     return await this.prisma.$transaction(async (tx) => {
-      // Step A: Check Sender Balance (Locking isn't needed yet for simple transfer)
-      const sender = await tx.user.findUnique({ where: { id: senderId } });
+      // 1. Fetch both in parallel (Total wait: ~50ms)
+      const [sender, receiver] = await Promise.all([
+        tx.user.findUnique({ where: { id: senderId } }),
+        tx.user.findUnique({ where: { id: receiverId } }),
+      ]);
+
+      // 2. Validate existence
       if (!sender) throw new NotFoundException('Sender not found');
+      if (!receiver) throw new NotFoundException('Receiver not found');
+      // Step A: Check Sender Balance (Locking isn't needed yet for simple transfer)
       if (Number(sender.balance) < amount) {
         throw new BadRequestException('Insufficient funds');
       }
@@ -46,7 +53,12 @@ export class TransactionsService {
   }
 
   findAll() {
-    return `This action returns all transactions`;
+    return this.prisma.transaction.findMany({
+      include: {
+        sender: { select: { name: true, email: true } },
+        receiver: { select: { name: true, email: true } },
+      },
+    });
   }
   findOne(id: number) {
     return `This action returns a #${id} transaction`;

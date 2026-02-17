@@ -26,7 +26,9 @@ export class UsersService {
   }
 
   findAll() {
-    return `This action returns all users`;
+    return this.prisma.user.findMany({
+      select: { id: true, name: true, email: true, balance: true },
+    });
   }
 
   findOne(id: number) {
